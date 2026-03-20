@@ -85,13 +85,13 @@ public class FlowEngine implements AutoCloseable {
             log.info("\u001B[93m敕令：「三笔凶神灭，煞气皆溃裂。」\u001B[0m");
 
             // The Three gives birth to the ten thousand things.
-            var mergeFlow = Flow.Flows.mergeFlow();
+            var mergeAndCleanFlow = Flow.Flows.mergeAndCleanFlow();
             log.info("\u001B[93m敕令：「四笔煞无形，乾坤朗朗清。」\u001B[0m");
 
             // 起始亦是终，始于道，亦终于道
             tao = bidFlow.thenAsync(chapterFlow)
                     .thenAsync(contentListFlow)
-                    .thenAsync(mergeFlow)
+                    .thenAsync(mergeAndCleanFlow)
                     .start(tao);
             log.info("\u001B[93m敕令：「笔收星芒，符镇八荒，朱砂既凝，邪魔永丧。」\u001B[0m");
         } catch (Exception e) {
