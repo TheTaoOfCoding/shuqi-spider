@@ -1,13 +1,11 @@
 package tao.coding.flow;
 
 import tao.coding.component.*;
-import tao.coding.component.*;
-import tao.coding.component.Formatter;
 import tao.coding.entity.Tao;
 import tao.coding.util.Assert;
 import tao.coding.entity.Chapter;
 
-import java.util.*;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
@@ -116,7 +114,7 @@ public interface Flow<T, R> {
         }
 
         // 完整 合并文件 的流程组装
-        public static Flow<List<Chapter.Chapter4Merge>, Tao> mergeFlow() {
+        public static Flow<List<Chapter.Chapter4Merge>, Tao> mergeAndCleanFlow() {
             return FlowEngine.IS_DEBUG ? Flow.empty() : () -> Merger.Mergers.fileMerger().thenAsync(Cleaner.Cleaners.fileCleaner());
         }
     }
