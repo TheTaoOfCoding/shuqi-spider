@@ -43,22 +43,22 @@ public record PartBook(List<Chapter.Chapter4Merge> sources, Integer startIndex, 
         var bookName = ScopedExecutor.ScopedExecutors.KEY.get();
         // 获取目标文件通道
         var targetFileChannel = BookCache.getFileChannel(bookName);
-        var atoLong = new AtomicLong(0);
+        var bytesCounter = new AtomicLong(0L);
         sources.stream()
-                .skip(startIndex - 1)
+                .skip(startIndex - 1) // [startIndex ~ endIndex]为从1开始的连续自然数，故此处取需 - 1
                 .limit(endIndex - startIndex + 1)
                 .forEach(chapter4Merge -> {
                     var skip = chapter4Merge.skip();
                     try (var sourceChannel = chapter4Merge.fileChannel()) {
                         var byteSize = targetFileChannel.transferFrom(sourceChannel, skip, sourceChannel.size());// 零拷贝
-                        atoLong.addAndGet(byteSize);
+                        bytesCounter.addAndGet(byteSize);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 });
 
         var successful = endIndex - startIndex + 1;
-        var byteSize = atoLong.get();
+        var byteSize = bytesCounter.get();
         log.info("{} - 合并完成 [{} ~ {} : {}, {}]", name, startIndex, endIndex, successful, byteSize);
         return new Result(successful, byteSize);
     }

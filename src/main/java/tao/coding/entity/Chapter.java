@@ -44,11 +44,11 @@ public class Chapter {
             this(bookName, orderId, filePath, fileChannel, -1L);
         }
 
-        public static Chapter4Merge of(Chapter4Merge chapter4Merge, AtomicLong atomicLong) {
+        public static Chapter4Merge of(Chapter4Merge chapter4Merge, AtomicLong skipsCounter) {
             try {
                 // 设置每章的跳过字节数 skip : atoLong.getAndAdd(size)
                 var size = chapter4Merge.fileChannel().size();
-                return new Chapter.Chapter4Merge(chapter4Merge, atomicLong.getAndAdd(size));
+                return new Chapter.Chapter4Merge(chapter4Merge, skipsCounter.getAndAdd(size));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

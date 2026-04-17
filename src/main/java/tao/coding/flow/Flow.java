@@ -93,14 +93,14 @@ public interface Flow<T, R> {
 
         // 完整 下载章节内容 的流程组装[针对所有章节内容]
         public static Flow<List<Chapter.Chapter4Read>, List<Chapter.Chapter4Merge>> contentListFlow() {
-            final var atomicLong = new AtomicLong(0L);
+            final var skipsCounter = new AtomicLong(0L);
             return parallelFlow(
                     // 测试模式下仅下载前 20 章
                     FlowEngine.IS_TEST ? chapter4Reads -> chapter4Reads.stream().limit(20).toList() : Function.identity(),
                     // 单条章节处理流程
                     Flows.contentFlow(),
                     // DEGUB模式下跳过设置 skip
-                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, atomicLong)).toList());
+                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList());
         }
 
         // 部分 下载章节内容 的流程组装[针对一条章节内容]
