@@ -6,6 +6,7 @@ import tao.coding.flow.FlowEngine;
 import tao.coding.util.Assert;
 import tao.coding.util.ContextPool;
 import tao.coding.util.FailFastHandler;
+import tao.coding.util.Assert.Predicates;
 
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;
@@ -93,7 +94,7 @@ public interface Decoder extends Task<Chapter.Chapter4Decode, Chapter.Chapter4Fo
             return chapter4Decode -> CompletableFuture.completedFuture(chapter4Decode)
                     .whenCompleteAsync((_, _) -> log.info("{} - 执行解密操作", Decoder.name()), taskExecutor())
                     .thenApplyAsync(Chapter.Chapter4Decode::ciphertext, taskExecutor())
-                    .whenCompleteAsync((ciphertext, _) -> Assert.isTrue(ciphertext, Assert::isNotNull, () -> new NullPointerException("无法下载VIP章节，如已开通VIP账号，请自行添加VIP权限校验。")), taskExecutor())
+                    .whenCompleteAsync((ciphertext, _) -> Assert.isTrue(ciphertext, Predicates::isNotNull, () -> new NullPointerException("无法下载VIP章节，如已开通VIP账号，请自行添加VIP权限校验。")), taskExecutor())
                     .exceptionallyAsync(FailFastHandler::handle, taskExecutor())
                     .thenApplyAsync(FlowEngine.USE_NATIVE ? Decoder::withNativeDecode : Decoder::withJsDecode, taskExecutor())// 根据配置选择解密方式
                     .thenApplyAsync(unformattedChapterContent -> new Chapter.Chapter4Format(chapter4Decode.bookName(), chapter4Decode.chapterName(), chapter4Decode.chapterOrdid(), unformattedChapterContent), taskExecutor());

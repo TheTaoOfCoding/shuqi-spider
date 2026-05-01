@@ -3,6 +3,7 @@ package tao.coding.component;
 import tao.coding.util.Assert;
 import tao.coding.util.RateLimiter;
 import tao.coding.util.ScopedExecutor;
+import tao.coding.util.Assert.Predicates;
 
 import java.util.Arrays;
 import java.util.List;
@@ -34,7 +35,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 同步调用链
      */
     default <V> Task<T, V> then(Task<? super R, V> next) {
-        Assert.isTrue(next, Assert::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
+        Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
         return t -> execute(t).thenCompose(next);
     }
 
@@ -43,7 +44,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 异步调用链
      */
     default <V> Task<T, V> thenAsync(Task<? super R, V> next) {
-        Assert.isTrue(next, Assert::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
+        Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
         return t -> execute(t).thenComposeAsync(next, taskExecutor());
     }
 
@@ -86,9 +87,9 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 并行任务（模板方法：算法骨架已然固定）
      */
     static <T, R> Task<List<T>, List<R>> parallelTask(Function<List<T>, List<T>> before, Task<? super T, R> task, Function<List<R>, List<R>> after) {
-        Assert.isTrue(before, Assert::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
-        Assert.isTrue(task, Assert::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
-        Assert.isTrue(after, Assert::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
+        Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
+        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
+        Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         final var atomicReference = new AtomicReference<CompletableFuture[]>();
         return items -> CompletableFuture.completedFuture(items)
                 .thenApplyAsync(before, taskExecutor()) // 参数前置处理
@@ -102,7 +103,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 流控任务专员（装饰器模式）
      */
     static <T, R> Task<T, ? extends R> withRateLimit(Task<? super T, R> innerTask, long delay) {
-        Assert.isTrue(innerTask, Assert::isNotNull, () -> new NullPointerException("The only way to do great work is to love what you do. — Steve Jobs"));
+        Assert.isTrue(innerTask, Predicates::isNotNull, () -> new NullPointerException("The only way to do great work is to love what you do. — Steve Jobs"));
         return t -> CompletableFuture.completedFuture(t)
                 .thenApplyAsync(RateLimiter::acquire, taskExecutor()) // 执行任务前获取信号量
                 .thenComposeAsync(innerTask, CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()))// 使用包装后带延时的线程池

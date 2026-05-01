@@ -4,6 +4,7 @@ import tao.coding.component.*;
 import tao.coding.entity.Tao;
 import tao.coding.util.Assert;
 import tao.coding.entity.Chapter;
+import tao.coding.util.Assert.Predicates;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -30,7 +31,7 @@ public interface Flow<T, R> {
      * 流程组装：同步调用链
      */
     default <V> Flow<T, V> then(Flow<? super R, V> next) {
-        Assert.isTrue(next, Assert::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
+        Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
         return () -> head().then(next.head());
     }
 
@@ -38,7 +39,7 @@ public interface Flow<T, R> {
      * 流程组装：异步调用链
      */
     default <V> Flow<T, V> thenAsync(Flow<? super R, V> next) {
-        Assert.isTrue(next, Assert::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
+        Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
         return () -> head().thenAsync(next.head());
     }
 
@@ -60,9 +61,9 @@ public interface Flow<T, R> {
      * 并行流程
      */
     static <T, R> Flow<List<T>, List<R>> parallelFlow(Function<List<T>, List<T>> before, Flow<? super T, R> flow, Function<List<R>, List<R>> after) {
-        Assert.isTrue(before, Assert::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
-        Assert.isTrue(flow, Assert::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
-        Assert.isTrue(after, Assert::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
         return () -> Task.parallelTask(before, flow.head(), after);
     }
 

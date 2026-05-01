@@ -2,6 +2,7 @@ package tao.coding.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.graalvm.polyglot.Context;
+import tao.coding.util.Assert.Predicates;
 
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.BlockingDeque;
@@ -26,7 +27,7 @@ public class ContextPool {
         System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
         log.info("{} - 执行初始化js引擎池", NAME);
         try (var resourceStream = ClassLoader.getSystemClassLoader().getResourceAsStream("decode.js")) {
-            Assert.isTrue(resourceStream, Assert::isNotNull, () -> new NullPointerException("To be, or not to be, that is the question. — William Shakespeare, Hamlet"));
+            Assert.isTrue(resourceStream, Predicates::isNotNull, () -> new NullPointerException("To be, or not to be, that is the question. — William Shakespeare, Hamlet"));
             JS_SCRIPT = new String(resourceStream.readAllBytes(), StandardCharsets.UTF_8);
             // 缓存300个 Context
             BLOCKING_DEQUE = IntStream.rangeClosed(1, 300)

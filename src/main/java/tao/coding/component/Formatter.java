@@ -2,7 +2,7 @@ package tao.coding.component;
 
 import lombok.extern.slf4j.Slf4j;
 import tao.coding.entity.Chapter;
-import tao.coding.util.Assert;
+import tao.coding.util.Assert.Predicates;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -46,7 +46,7 @@ public interface Formatter extends Task<Chapter.Chapter4Format, Chapter.Chapter4
                     .thenApplyAsync(Chapter.Chapter4Format::unformattedChapterContent, taskExecutor())
                     .thenApplyAsync(unformattedChapterContent -> unformattedChapterContent.replaceAll("<br/>", "\n"), taskExecutor())// 替换换行符
                     .thenApplyAsync(String::lines, taskExecutor())
-                    .thenApplyAsync(stringStream -> stringStream.filter(Assert::strNotBlank), taskExecutor())// 去除空白行
+                    .thenApplyAsync(stringStream -> stringStream.filter(Predicates::strNotBlank), taskExecutor())// 去除空白行
                     .thenApplyAsync(stringStream -> stringStream.map(String::strip), taskExecutor())// 去除行首行尾空格
                     .thenApplyAsync(stringStream -> stringStream.collect(Collectors.joining("\n")), taskExecutor())// 重新拼接换行
                     .thenApplyAsync(chapterContext -> String.format("%s\n%s\n\n", chapter4Format.chapterName(), chapterContext), taskExecutor())// 拼接章节名，行尾添加两个换行符，方便后续文件合并

@@ -7,6 +7,8 @@ import java.net.http.HttpClient;
 import java.util.Arrays;
 import java.util.Optional;
 
+import tao.coding.util.Assert.Predicates;
+
 import static tao.coding.entity.Tao.TAO;
 import static tao.coding.util.ScopedExecutor.*;
 
@@ -32,7 +34,7 @@ public class FlowEngine implements AutoCloseable {
     private static volatile FlowEngine DEFAULT_FLOW_ENGINE;
 
     private FlowEngine() {
-        Assert.isTrue(DEFAULT_FLOW_ENGINE, Assert::isNull, () -> new IllegalStateException("Don’t judge each day by the harvest you reap but by the seeds that you plant. — Robert Louis Stevenson"));
+        Assert.isTrue(DEFAULT_FLOW_ENGINE, Predicates::isNull, () -> new IllegalStateException("Don’t judge each day by the harvest you reap but by the seeds that you plant. — Robert Louis Stevenson"));
     }
 
     // 花式 dcl 单例
