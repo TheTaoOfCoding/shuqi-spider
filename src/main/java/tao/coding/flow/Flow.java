@@ -30,7 +30,7 @@ public interface Flow<T, R> {
     /*
      * 重试流程
      */
-    default Flow<T, R> withRetry() {
+    default Flow<T, R> retry() {
         return () -> head().retry();
     }
 
