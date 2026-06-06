@@ -38,7 +38,7 @@ public interface Flow<T, R> {
      * 重试流程
      */
     static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
-        return flow.head()::retry;
+        return flow.retry();
     }
 
     /*
