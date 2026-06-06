@@ -31,14 +31,14 @@ public interface Flow<T, R> {
      * 重试流程
      */
     default Flow<T, R> retry() {
-        return () -> head().retry();
+        return head()::retry;
     }
 
     /*
      * 重试流程
      */
     static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
-        return () -> flow.head().retry();
+        return flow.head()::retry;
     }
 
     /*
