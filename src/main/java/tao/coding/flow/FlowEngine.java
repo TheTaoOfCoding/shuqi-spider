@@ -2,12 +2,11 @@ package tao.coding.flow;
 
 import lombok.extern.slf4j.Slf4j;
 import tao.coding.util.Assert;
+import tao.coding.util.Assert.Predicates;
 
 import java.net.http.HttpClient;
 import java.util.Arrays;
 import java.util.Optional;
-
-import tao.coding.util.Assert.Predicates;
 
 import static tao.coding.entity.Tao.TAO;
 import static tao.coding.util.ScopedExecutor.*;

@@ -1,9 +1,9 @@
 package tao.coding.component;
 
 import tao.coding.util.Assert;
+import tao.coding.util.Assert.Predicates;
 import tao.coding.util.RateLimiter;
 import tao.coding.util.ScopedExecutor;
-import tao.coding.util.Assert.Predicates;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +46,22 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     default <V> Task<T, V> thenAsync(Task<? super R, V> next) {
         Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
         return t -> execute(t).thenComposeAsync(next, taskExecutor());
+    }
+
+    /*
+     * 重试任务（延迟1秒后）
+     */
+    default Task<T, R> retry() {
+        return retry(1L);
+    }
+
+    /*
+     * 重试任务
+     */
+    default Task<T, R> retry(long delay) {
+        Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new NullPointerException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        return t -> execute(t)
+                .exceptionallyComposeAsync(_ -> apply(t), CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()));
     }
 
     /*
@@ -104,6 +120,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      */
     static <T, R> Task<T, ? extends R> withRateLimit(Task<? super T, R> innerTask, long delay) {
         Assert.isTrue(innerTask, Predicates::isNotNull, () -> new NullPointerException("The only way to do great work is to love what you do. — Steve Jobs"));
+        Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new IllegalArgumentException("The only way to do great work is to love what you do. — Steve Jobs"));
         return t -> CompletableFuture.completedFuture(t)
                 .thenApplyAsync(RateLimiter::acquire, taskExecutor()) // 执行任务前获取信号量
                 .thenComposeAsync(innerTask, CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()))// 使用包装后带延时的线程池

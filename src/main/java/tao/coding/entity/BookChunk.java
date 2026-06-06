@@ -21,13 +21,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * @param executor   线程池
  */
 @Slf4j
-public record PartBook(List<Chapter.Chapter4Merge> sources, Integer startIndex, Integer endIndex, Integer capacity,
-                       Executor executor) implements IOForkJoinTask<PartBook> {
+public record BookChunk(List<Chapter.Chapter4Merge> sources, Integer startIndex, Integer endIndex, Integer capacity,
+                        Executor executor) implements IOForkJoinTask<BookChunk> {
 
     // 从 sources 构造
-    public static PartBook of(List<Chapter.Chapter4Merge> sources) {
+    public static BookChunk of(List<Chapter.Chapter4Merge> sources) {
         var orderIds = sources.stream().map(Chapter.Chapter4Merge::chapterOrdid).toList();
-        return new PartBook(sources, orderIds.getFirst(), orderIds.getLast(), FlowEngine.DEFAULT_CAPACITY, Task.taskExecutor());
+        return new BookChunk(sources, orderIds.getFirst(), orderIds.getLast(), FlowEngine.DEFAULT_CAPACITY, Task.taskExecutor());
     }
 
     public String name() {
@@ -65,11 +65,11 @@ public record PartBook(List<Chapter.Chapter4Merge> sources, Integer startIndex, 
 
     // 二分法拆分任务
     @Override
-    public PartBook[] doFork() {
+    public BookChunk[] doFork() {
         var medianIndex = (startIndex + endIndex) >> 1;// = (endIndex - startIndex) / 2 + startIndex
-        var left = new PartBook(sources, startIndex, medianIndex, capacity, executor);
-        var right = new PartBook(sources, medianIndex + 1, endIndex, capacity, executor);
+        var left = new BookChunk(sources, startIndex, medianIndex, capacity, executor);
+        var right = new BookChunk(sources, medianIndex + 1, endIndex, capacity, executor);
         log.info("{} - 执行拆分 left[{} ~ {}],right[{} ~ {}]", name(), left.startIndex, left.endIndex, right.startIndex, right.endIndex);
-        return new PartBook[]{left, right};
+        return new BookChunk[]{left, right};
     }
 }

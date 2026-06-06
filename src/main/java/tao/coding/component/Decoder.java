@@ -4,9 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import tao.coding.entity.Chapter;
 import tao.coding.flow.FlowEngine;
 import tao.coding.util.Assert;
+import tao.coding.util.Assert.Predicates;
 import tao.coding.util.ContextPool;
 import tao.coding.util.FailFastHandler;
-import tao.coding.util.Assert.Predicates;
 
 import java.util.Base64;
 import java.util.concurrent.CompletableFuture;

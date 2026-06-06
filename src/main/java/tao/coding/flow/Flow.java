@@ -3,8 +3,8 @@ package tao.coding.flow;
 import tao.coding.component.*;
 import tao.coding.entity.Tao;
 import tao.coding.util.Assert;
-import tao.coding.entity.Chapter;
 import tao.coding.util.Assert.Predicates;
+import tao.coding.entity.Chapter;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -25,6 +25,20 @@ public interface Flow<T, R> {
      */
     default R start(T t) {
         return head().apply(t).join();
+    }
+
+    /*
+     * 重试流程
+     */
+    default Flow<T, R> withRetry() {
+        return () -> head().retry();
+    }
+
+    /*
+     * 重试流程
+     */
+    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
+        return () -> flow.head().retry();
     }
 
     /*
@@ -80,38 +94,38 @@ public interface Flow<T, R> {
     class Flows {
         // 完整 下载bid 的流程组装
         public static Flow<Tao, String> bidFlow() {
-            return () -> Reader.Readers.bidReader()
+            return Flow.withRetry(() -> Reader.Readers.bidReader()
                     .thenAsync(Selector.Selectors.bidSelector())
-                    .thenAsync(Parser.Parsers.bidParser());
+                    .thenAsync(Parser.Parsers.bidParser()));
         }
 
         // 完整 下载章节列表 的流程组装
         public static Flow<String, List<Chapter.Chapter4Read>> chapterFlow() {
-            return () -> Reader.Readers.chapterReader()
+            return Flow.withRetry(() -> Reader.Readers.chapterReader()
                     .thenAsync(Selector.Selectors.chapterSelector())
-                    .thenAsync(Parser.Parsers.chapterParser());
+                    .thenAsync(Parser.Parsers.chapterParser()));
         }
 
         // 完整 下载章节内容 的流程组装[针对所有章节内容]
         public static Flow<List<Chapter.Chapter4Read>, List<Chapter.Chapter4Merge>> contentListFlow() {
             final var skipsCounter = new AtomicLong(0L);
-            return parallelFlow(
+            return Flow.withRetry(parallelFlow(
                     // 测试模式下仅下载前 20 章
                     FlowEngine.IS_TEST ? chapter4Reads -> chapter4Reads.stream().limit(20).toList() : Function.identity(),
                     // 单条章节处理流程
-                    Flows.contentFlow(),
+                    contentFlow(),
                     // DEGUB模式下跳过设置 skip
-                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList());
+                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList()));
         }
 
         // 部分 下载章节内容 的流程组装[针对一条章节内容]
         public static Flow<Chapter.Chapter4Read, Chapter.Chapter4Merge> contentFlow() {
-            return () -> Reader.Readers.contentReader()
+            return Flow.withRetry(() -> Reader.Readers.contentReader()
                     .thenAsync(Selector.Selectors.contentSelector())
                     .thenAsync(Parser.Parsers.contentParser())
                     .thenAsync(Decoder.Decoders.contentDecoder())
                     .thenAsync(Formatter.Formatters.contentFormatter())
-                    .thenAsync(FlowEngine.IS_DEBUG ? Writer.Writers.consoleWriter() : Writer.Writers.fileWriter());
+                    .thenAsync(FlowEngine.IS_DEBUG ? Writer.Writers.consoleWriter() : Writer.Writers.fileWriter()));
         }
 
         // 完整 合并文件 的流程组装
