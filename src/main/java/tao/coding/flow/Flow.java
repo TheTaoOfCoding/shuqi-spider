@@ -109,23 +109,23 @@ public interface Flow<T, R> {
         // 完整 下载章节内容 的流程组装[针对所有章节内容]
         public static Flow<List<Chapter.Chapter4Read>, List<Chapter.Chapter4Merge>> contentListFlow() {
             final var skipsCounter = new AtomicLong(0L);
-            return Flow.withRetry(parallelFlow(
+            return parallelFlow(
                     // 测试模式下仅下载前 20 章
                     FlowEngine.IS_TEST ? chapter4Reads -> chapter4Reads.stream().limit(20).toList() : Function.identity(),
                     // 单条章节处理流程
                     contentFlow(),
                     // DEGUB模式下跳过设置 skip
-                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList()));
+                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList());
         }
 
         // 部分 下载章节内容 的流程组装[针对一条章节内容]
         public static Flow<Chapter.Chapter4Read, Chapter.Chapter4Merge> contentFlow() {
-            return Flow.withRetry(() -> Reader.Readers.contentReader()
+            return () -> Reader.Readers.contentReader()
                     .thenAsync(Selector.Selectors.contentSelector())
                     .thenAsync(Parser.Parsers.contentParser())
                     .thenAsync(Decoder.Decoders.contentDecoder())
                     .thenAsync(Formatter.Formatters.contentFormatter())
-                    .thenAsync(FlowEngine.IS_DEBUG ? Writer.Writers.consoleWriter() : Writer.Writers.fileWriter()));
+                    .thenAsync(FlowEngine.IS_DEBUG ? Writer.Writers.consoleWriter() : Writer.Writers.fileWriter());
         }
 
         // 完整 合并文件 的流程组装
