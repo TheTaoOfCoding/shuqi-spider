@@ -38,6 +38,7 @@ public interface Flow<T, R> {
      * 重试流程
      */
     static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
         return flow.retry();
     }
 
