@@ -59,9 +59,8 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 重试任务
      */
     default Task<T, R> retry(long delay) {
-        Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new NullPointerException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
-        return t -> execute(t)
-                .exceptionallyComposeAsync(_ -> apply(t), CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()));
+        Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        return t -> execute(t).exceptionallyComposeAsync(_ -> apply(t), CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()));
     }
 
     /*
