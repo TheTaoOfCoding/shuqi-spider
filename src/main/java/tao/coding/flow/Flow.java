@@ -35,14 +35,6 @@ public interface Flow<T, R> {
     }
 
     /*
-     * 重试流程
-     */
-    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
-        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
-        return flow.retry();
-    }
-
-    /*
      * 流程组装：同步调用链
      */
     default <V> Flow<T, V> then(Flow<? super R, V> next) {
@@ -80,6 +72,14 @@ public interface Flow<T, R> {
         Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
         Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
         return () -> Task.parallelTask(before, flow.head(), after);
+    }
+
+    /*
+     * 重试指定流程
+     */
+    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
+        return flow.retry();
     }
 
     /**
