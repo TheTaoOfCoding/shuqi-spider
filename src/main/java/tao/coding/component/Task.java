@@ -8,6 +8,7 @@ import tao.coding.util.ScopedExecutor;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -49,18 +50,27 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     }
 
     /*
-     * 重试任务（延迟1秒后）
+     * 重试任务
      */
     default Task<T, R> retry() {
-        return retry(1L);
+        return retry(1L, 2L);
     }
 
     /*
-     * 重试任务
+     * 重试任务（延时后重复一次）
      */
     default Task<T, R> retry(long delay) {
         Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
-        return t -> execute(t).exceptionallyComposeAsync(_ -> apply(t), CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()));
+        return t -> execute(t).exceptionallyComposeAsync(_ -> apply(t), delayedTaskExecutor(delay));
+    }
+
+    /*
+     * 重试任务（延时后重复多次）
+     */
+    default Task<T, R> retry(long delay, long times) {
+        Assert.isTrue(times, 1L, Predicates::isOrderGe, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        if (times == 1) return retry(delay);
+        return retry(delay + 1, times - 1).retry(delay);
     }
 
     /*
@@ -122,7 +132,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new IllegalArgumentException("The only way to do great work is to love what you do. — Steve Jobs"));
         return t -> CompletableFuture.completedFuture(t)
                 .thenApplyAsync(RateLimiter::acquire, taskExecutor()) // 执行任务前获取信号量
-                .thenComposeAsync(innerTask, CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor()))// 使用包装后带延时的线程池
+                .thenComposeAsync(innerTask, delayedTaskExecutor(delay)) // 使用包装后带延时的线程池
                 .whenCompleteAsync(RateLimiter::release, taskExecutor()); // 任务结束时释放信号量
     }
 
@@ -131,5 +141,12 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      */
     static ScopedExecutor taskExecutor() {
         return ScopedExecutor.ScopedExecutors.newScopedExecutor();
+    }
+
+    /**
+     * 带延时的任务专用线程池
+     */
+    static Executor delayedTaskExecutor(long delay) {
+        return CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS, taskExecutor());
     }
 }
