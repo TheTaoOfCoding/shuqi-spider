@@ -70,7 +70,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     default Task<T, R> retry(long delay, long times) {
         Assert.isTrue(times, 1L, Predicates::isOrderGe, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
         if (times == 1) return retry(delay);
-        return retry(delay + 1, times - 1).retry(delay);
+        return retry(delay, times - 1).retry(delay + 1);
     }
 
     /*
