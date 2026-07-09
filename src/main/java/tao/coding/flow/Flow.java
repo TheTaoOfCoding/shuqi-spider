@@ -7,7 +7,6 @@ import tao.coding.util.Assert.Predicates;
 import tao.coding.entity.Chapter;
 
 import java.util.List;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 
 /**
@@ -28,13 +27,6 @@ public interface Flow<T, R> {
     }
 
     /*
-     * 重试流程
-     */
-    default Flow<T, R> retry() {
-        return head()::retry;
-    }
-
-    /*
      * 流程组装：同步调用链
      */
     default <V> Flow<T, V> then(Flow<? super R, V> next) {
@@ -48,6 +40,13 @@ public interface Flow<T, R> {
     default <V> Flow<T, V> thenAsync(Flow<? super R, V> next) {
         Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
         return () -> head().thenAsync(next.head());
+    }
+
+    /*
+     * 重试流程
+     */
+    default Flow<T, R> retry() {
+        return head()::retry;
     }
 
     /*
@@ -65,21 +64,21 @@ public interface Flow<T, R> {
     }
 
     /*
-     * 并行流程
-     */
-    static <T, R> Flow<List<T>, List<R>> parallelFlow(Function<List<T>, List<T>> before, Flow<? super T, R> flow, Function<List<R>, List<R>> after) {
-        Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
-        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
-        Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
-        return () -> Task.parallelTask(before, flow.head(), after);
-    }
-
-    /*
      * 重试指定流程
      */
     static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
         Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
         return flow.retry();
+    }
+
+    /*
+     * 并行流程
+     */
+    static <T, R> Flow<List<T>, List<R>> withParallel(Function<List<T>, List<T>> before, Flow<? super T, R> flow, Function<List<R>, List<R>> after) {
+        Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("Do not, for one repulse, forgo the purpose that you resolved to effort. — William Shakespeare"));
+        return () -> Task.withParallel(before, flow.head(), after);
     }
 
     /**
@@ -95,28 +94,27 @@ public interface Flow<T, R> {
     class Flows {
         // 完整 下载bid 的流程组装
         public static Flow<Tao, String> bidFlow() {
-            return Flow.withRetry(() -> Reader.Readers.bidReader()
+            return withRetry(() -> Reader.Readers.bidReader()
                     .thenAsync(Selector.Selectors.bidSelector())
                     .thenAsync(Parser.Parsers.bidParser()));
         }
 
         // 完整 下载章节列表 的流程组装
         public static Flow<String, List<Chapter.Chapter4Read>> chapterFlow() {
-            return Flow.withRetry(() -> Reader.Readers.chapterReader()
+            return withRetry(() -> Reader.Readers.chapterReader()
                     .thenAsync(Selector.Selectors.chapterSelector())
                     .thenAsync(Parser.Parsers.chapterParser()));
         }
 
         // 完整 下载章节内容 的流程组装[针对所有章节内容]
         public static Flow<List<Chapter.Chapter4Read>, List<Chapter.Chapter4Merge>> contentListFlow() {
-            final var skipsCounter = new AtomicLong(0L);
-            return parallelFlow(
+            return withParallel(
                     // 测试模式下仅下载前 20 章
-                    FlowEngine.IS_TEST ? chapter4Reads -> chapter4Reads.stream().limit(20).toList() : Function.identity(),
+                    FlowEngine.IS_TEST ? Chapter.Chapter4Read::nonVIP : Function.identity(),
                     // 单条章节处理流程
                     contentFlow(),
-                    // DEGUB模式下跳过设置 skip
-                    FlowEngine.IS_DEBUG ? Function.identity() : chapter4Merges -> chapter4Merges.stream().map(chapter4Merge -> Chapter.Chapter4Merge.of(chapter4Merge, skipsCounter)).toList());
+                    // DEBUG 模式下跳过设置 skip
+                    FlowEngine.IS_DEBUG ? Function.identity() : Chapter.Chapter4Merge::assignSkipOffsets);
         }
 
         // 部分 下载章节内容 的流程组装[针对一条章节内容]
@@ -131,7 +129,7 @@ public interface Flow<T, R> {
 
         // 完整 合并文件 的流程组装
         public static Flow<List<Chapter.Chapter4Merge>, Tao> mergeAndCleanFlow() {
-            return FlowEngine.IS_DEBUG ? Flow.empty() : () -> Merger.Mergers.fileMerger().thenAsync(Cleaner.Cleaners.fileCleaner());
+            return FlowEngine.IS_DEBUG ? empty() : () -> Merger.Mergers.fileMerger().thenAsync(Cleaner.Cleaners.fileCleaner());
         }
     }
 }

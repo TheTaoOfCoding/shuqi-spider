@@ -32,8 +32,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     }
 
     /*
-     * 高阶函数：利用函数式编程的函数组合特性，来组装两个任务
-     * 同步调用链
+     * 任务组装，同步调用链
      */
     default <V> Task<T, V> then(Task<? super R, V> next) {
         Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
@@ -41,8 +40,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     }
 
     /*
-     * 高阶函数：利用函数式编程的函数组合特性，来组装两个任务
-     * 异步调用链
+     * 任务组装，异步调用链
      */
     default <V> Task<T, V> thenAsync(Task<? super R, V> next) {
         Assert.isTrue(next, Predicates::isNotNull, () -> new NullPointerException("An unexamined life is not worth living. — Socrates"));
@@ -88,30 +86,31 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     }
 
     /**
-     * 方法重载自 {@link Task#parallelTask(Function, Task, Function)}
+     * 方法重载自 {@link Task#withParallel(Function, Task, Function)}
      */
-    static <T, R> Task<List<T>, List<R>> parallelTask(Function<List<T>, List<T>> before, Task<? super T, R> task) {
-        return parallelTask(before, task, Function.identity());
+    static <T, R> Task<List<T>, List<R>> withParallel(Function<List<T>, List<T>> before, Task<? super T, R> task) {
+        return withParallel(before, task, Function.identity());
     }
 
     /**
-     * 方法重载自 {@link Task#parallelTask(Function, Task, Function)}
+     * 方法重载自 {@link Task#withParallel(Function, Task, Function)}
      */
-    static <T, R> Task<List<T>, List<R>> parallelTask(Task<? super T, R> task) {
-        return parallelTask(Function.identity(), task, Function.identity());
+    static <T, R> Task<List<T>, List<R>> withParallel(Task<? super T, R> task) {
+        return withParallel(Function.identity(), task, Function.identity());
     }
 
     /**
-     * 方法重载自 {@link Task#parallelTask(Function, Task, Function)}
+     * 方法重载自 {@link Task#withParallel(Function, Task, Function)}
      */
-    static <T, R> Task<List<T>, List<R>> parallelTask(Task<? super T, R> task, Function<List<R>, List<R>> after) {
-        return parallelTask(Function.identity(), task, after);
+    static <T, R> Task<List<T>, List<R>> withParallel(Task<? super T, R> task, Function<List<R>, List<R>> after) {
+        return withParallel(Function.identity(), task, after);
     }
 
     /*
      * 并行任务（模板方法：算法骨架已然固定）
+     * 通过方法重载提供默认钩子 Function.identity()
      */
-    static <T, R> Task<List<T>, List<R>> parallelTask(Function<List<T>, List<T>> before, Task<? super T, R> task, Function<List<R>, List<R>> after) {
+    static <T, R> Task<List<T>, List<R>> withParallel(Function<List<T>, List<T>> before, Task<? super T, R> task, Function<List<R>, List<R>> after) {
         Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
@@ -143,7 +142,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         return ScopedExecutor.ScopedExecutors.newScopedExecutor();
     }
 
-    /**
+    /*
      * 带延时的任务专用线程池
      */
     static Executor delayedTaskExecutor(long delay) {

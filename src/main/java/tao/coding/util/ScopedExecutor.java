@@ -13,17 +13,17 @@ import java.util.stream.Stream;
 @SuppressWarnings("unused")
 public interface ScopedExecutor extends Executor {
 
-    static ExecutorService delegate() {
-        return ScopedExecutors.DELEGATE;
+    static ExecutorService target() {
+        return ScopedExecutors.TARGET;
     }
 
     static void shutdown() {
-        delegate().shutdown();
+        target().shutdown();
     }
 
     class ScopedExecutors {
-        // IO密集型任务线程池：使用虚拟线程池 （静态代理对象）
-        private static final ExecutorService DELEGATE = Executors.newVirtualThreadPerTaskExecutor();
+        // IO密集型任务线程池：使用虚拟线程池 （静态代理模式真实对象）
+        private static final ExecutorService TARGET = Executors.newVirtualThreadPerTaskExecutor();
         // 线程本地变量：传递当前下载的书籍名称
         public static final ScopedValue<String> KEY = ScopedValue.newInstance();
 
@@ -47,7 +47,7 @@ public interface ScopedExecutor extends Executor {
         // 装饰器 + 静态代理
         public static <T> ScopedExecutor newScopedExecutor(ScopedValue<T> key, T value) {
             // 在新创建的虚拟线程中重新绑定值
-            return r -> DELEGATE.execute(() -> ScopedValue.where(key, value).run(r));
+            return r -> TARGET.execute(() -> ScopedValue.where(key, value).run(r));
         }
 
         // 动态代理 + 静态代理
@@ -60,7 +60,7 @@ public interface ScopedExecutor extends Executor {
                     args[0] = (Runnable) () -> ScopedValue.where(key, value).run(r);
                 }
                 return MethodHandles.lookup().unreflect(method)
-                        .invokeWithArguments(Stream.concat(Stream.of(DELEGATE), Arrays.stream(args)).toArray());
+                        .invokeWithArguments(Stream.concat(Stream.of(TARGET), Arrays.stream(args)).toArray());
             });
         }
     }

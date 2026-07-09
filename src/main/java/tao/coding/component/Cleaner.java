@@ -36,7 +36,7 @@ public interface Cleaner<T, R> extends Task<T, R> {
         }
 
         public static Cleaner<Chapter.Chapter4Clean, Tao> fileCleaner() {
-            final var cleanParallelTask = Task.parallelTask(
+            final var cleanParallelTask = Task.withParallel(
                     paths -> paths.stream().filter(Chapter.Chapter4Clean::needDelete).toList() // 前置筛选（二元决策：全有或全无）
                     , singleCleaner()); // 删除逻辑
             return chapter4Clean -> CompletableFuture.completedFuture(chapter4Clean)
