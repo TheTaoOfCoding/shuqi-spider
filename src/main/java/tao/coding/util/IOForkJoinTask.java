@@ -59,10 +59,10 @@ public interface IOForkJoinTask<T extends IOForkJoinTask<T>> {
     @SuppressWarnings("unchecked")
     default CompletableFuture<Result> join(CompletableFuture<CompletableFuture<Result>>... futures) {
         final var atomicReference = new AtomicReference<CompletableFuture<Result>[]>();
-        return CompletableFuture.allOf(futures) // 等待母任务完成（fork 任务）
+        return CompletableFuture.allOf(futures) // 等待母任务完成（fork 任务线程）
                 .whenCompleteAsync((_, _) -> log.info("{} - 等待子任务返回 ...", IOForkJoinTask.name()), executor())
-                .thenApplyAsync(_ -> atomicReference.updateAndGet(_ -> Arrays.stream(futures).map(CompletableFuture<CompletableFuture<Result>>::join).toArray(CompletableFuture[]::new)), executor()) // 汇总母结果
-                .thenApplyAsync(CompletableFuture::allOf, executor()) // 等待子任务完成（worker 任务）
+                .thenApplyAsync(_ -> atomicReference.updateAndGet(_ -> Arrays.stream(futures).map(CompletableFuture<CompletableFuture<Result>>::join).toArray(CompletableFuture[]::new)), executor()) // 汇总母任务结果
+                .thenApplyAsync(CompletableFuture::allOf, executor()) // 等待子任务完成（worker 任务线程）
                 .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<Result>::join).reduce(Result.ZERO, Result::reduce), executor()) // 汇总子任务结果
                 .whenCompleteAsync((result, _) -> log.info("{} - 返回结果:{}", IOForkJoinTask.name(), result), executor());
     }
