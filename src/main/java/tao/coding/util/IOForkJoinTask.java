@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 用于IO密集型任务分治的工具类
@@ -36,16 +37,16 @@ public interface IOForkJoinTask<T extends IOForkJoinTask<T>> {
     }
 
     // 要在线程内执行的任务的起始点（模板方法模式，定义流程算法骨架）
-    default Result compute() {
+    default CompletableFuture<Result> compute() {
         return needFork() ? join(fork()) : doCompute();
     }
 
     // 执行具体的任务操作由子类实现
-    Result doCompute();
+    CompletableFuture<Result> doCompute();
 
-    // 任务拆分
+    // 拆分并提交异步子任务
     @SuppressWarnings("unchecked")
-    default CompletableFuture<Result>[] fork() {
+    default CompletableFuture<CompletableFuture<Result>>[] fork() {
         return Arrays.stream(doFork())
                 .map(task -> CompletableFuture.supplyAsync(task::compute, executor())) // 将子任务提交至线程池
                 .toArray(CompletableFuture[]::new);
@@ -54,17 +55,16 @@ public interface IOForkJoinTask<T extends IOForkJoinTask<T>> {
     // 具体拆分算法由子类实现
     T[] doFork();
 
-    // 当前任务阻塞等待子任务的返回结果
+    // 非阻塞式等待子任务结果
     @SuppressWarnings("unchecked")
-    default Result join(CompletableFuture<Result>... futures) {
-        // 返回值用以计算任务成功数量
-        log.info("{} - 等待子任务返回 ...", IOForkJoinTask.name());
-        // 合并子任务返回结果
-        var result = CompletableFuture.allOf(futures) // 等待所有子任务完成
-                .thenApplyAsync(_ -> Arrays.stream(futures).map(CompletableFuture::join).reduce(Result.ZERO, Result::reduce), executor()) // 汇总返回子任务结果
-                .join();
-        log.info("{} - 返回结果:{}", IOForkJoinTask.name(), result);
-        return result;
+    default CompletableFuture<Result> join(CompletableFuture<CompletableFuture<Result>>... futures) {
+        final var atomicReference = new AtomicReference<CompletableFuture<Result>[]>();
+        return CompletableFuture.allOf(futures) // 等待母任务完成（fork 任务）
+                .whenCompleteAsync((_, _) -> log.info("{} - 等待子任务返回 ...", IOForkJoinTask.name()), executor())
+                .thenApplyAsync(_ -> atomicReference.updateAndGet(_ -> Arrays.stream(futures).map(CompletableFuture<CompletableFuture<Result>>::join).toArray(CompletableFuture[]::new)), executor()) // 汇总母结果
+                .thenApplyAsync(CompletableFuture::allOf, executor()) // 等待子任务完成（worker 任务）
+                .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<Result>::join).reduce(Result.ZERO, Result::reduce), executor()) // 汇总子任务结果
+                .whenCompleteAsync((result, _) -> log.info("{} - 返回结果:{}", IOForkJoinTask.name(), result), executor());
     }
 
     /**

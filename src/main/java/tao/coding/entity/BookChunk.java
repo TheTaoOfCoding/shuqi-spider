@@ -8,6 +8,7 @@ import tao.coding.util.IOForkJoinTask;
 import tao.coding.util.ScopedExecutor;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -21,8 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @param executor   线程池
  */
 @Slf4j
-public record BookChunk(List<Chapter.Chapter4Merge> sources, Integer startIndex, Integer endIndex, Integer capacity,
-                        Executor executor) implements IOForkJoinTask<BookChunk> {
+public record BookChunk(List<Chapter.Chapter4Merge> sources, Integer startIndex, Integer endIndex, Integer capacity, Executor executor) implements IOForkJoinTask<BookChunk> {
 
     // 从 sources 构造
     public static BookChunk of(List<Chapter.Chapter4Merge> sources) {
@@ -35,7 +35,7 @@ public record BookChunk(List<Chapter.Chapter4Merge> sources, Integer startIndex,
     }
 
     @Override
-    public Result doCompute() {
+    public CompletableFuture<Result> doCompute() {
         var name = name();
         log.info("{} - 准备合并 [{} ~ {}]", name, startIndex, endIndex);
 
@@ -60,7 +60,8 @@ public record BookChunk(List<Chapter.Chapter4Merge> sources, Integer startIndex,
         var successful = endIndex - startIndex + 1;
         var byteSize = bytesCounter.get();
         log.info("{} - 合并完成 [{} ~ {} : {}, {}]", name, startIndex, endIndex, successful, byteSize);
-        return new Result(successful, byteSize);
+        var result = new Result(successful, byteSize);
+        return CompletableFuture.completedFuture(result);
     }
 
     // 二分法拆分任务

@@ -30,8 +30,7 @@ public class Chapter {
     }
 
     // 排版时
-    public record Chapter4Format(String bookName, String chapterName, Integer chapterOrdid,
-                                 String unformattedChapterContent) {
+    public record Chapter4Format(String bookName, String chapterName, Integer chapterOrdid, String unformattedChapterContent) {
     }
 
     // 保存时

@@ -114,7 +114,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
-        final var atomicReference = new AtomicReference<CompletableFuture[]>();
+        final var atomicReference = new AtomicReference<CompletableFuture<R>[]>();
         return items -> CompletableFuture.completedFuture(items)
                 .thenApplyAsync(before, taskExecutor()) // 参数前置处理
                 .thenApplyAsync(list -> atomicReference.updateAndGet(_ -> list.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
