@@ -1,11 +1,12 @@
 package io.github.thetaoofcoding.entity;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import io.github.thetaoofcoding.util.CheckedExceptionFucker;
+import tools.jackson.databind.JsonNode;
 
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.IntStream;
+
+import static io.github.thetaoofcoding.component.Parser.JSON_MAPPER;
 
 /**
  * 中继节点，存储 chapterListNode && bookNameNode
@@ -29,14 +30,14 @@ public record RelayNode(JsonNode chapterListNode, JsonNode bookNameNode) {
                         .stream())
                 .map(jsonNode -> {
                     // 构建目标 ObjectNode 对象
-                    var targetObjectNode = CheckedExceptionFucker.createObjectNode();
+                    var targetObjectNode = JSON_MAPPER.createObjectNode();
                     // 从根节点添加 bookName 属性
                     targetObjectNode.putIfAbsent("bookName", bookNameNode);
                     // 添加其余属性
                     recognizedProperties.forEach(property -> targetObjectNode.putIfAbsent(property, jsonNode.get(property)));
                     return targetObjectNode;
                 })
-                .map(chapterJsonNode -> CheckedExceptionFucker.treeToValue(chapterJsonNode, Chapter.Chapter4Read.class))
+                .map(chapterJsonNode -> JSON_MAPPER.treeToValue(chapterJsonNode, Chapter.Chapter4Read.class))
                 .sorted(Comparator.comparing(Chapter.Chapter4Read::chapterOrdid)) // 返回前排序
                 .toList();
     }

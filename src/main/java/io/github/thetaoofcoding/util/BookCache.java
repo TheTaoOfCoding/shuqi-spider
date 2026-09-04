@@ -47,13 +47,7 @@ public class BookCache {
                 var raf = new RandomAccessFile(targetFilePath.toFile(), "rw");
                 // 计算合并后的文件总长度（字节）
                 var totalLength = Files.list(folderPath)
-                        .map(path -> {
-                            try {
-                                return Files.size(path);
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-                        })
+                        .map(CheckedExceptionFucker::filesSize)
                         .reduce(0L, Long::sum);
                 // 预设置总文件大小，避免重复扩容，提升写入时性能
                 raf.setLength(totalLength);

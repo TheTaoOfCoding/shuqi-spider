@@ -49,7 +49,7 @@ public interface Cleaner<T, R> extends Task<T, R> {
         // 删除单个文件
         static Cleaner<Path, Void> singleCleaner() {
             return path -> CompletableFuture.completedFuture(path)
-                    .thenAcceptAsync(CheckedExceptionFucker::deleteIfExists, taskExecutor())
+                    .thenAcceptAsync(CheckedExceptionFucker::filesDeleteIfExists, taskExecutor())
                     .thenRunAsync(() -> log.info("{} - 删除文件成功：{}", Cleaner.name(), path), taskExecutor());
         }
     }
