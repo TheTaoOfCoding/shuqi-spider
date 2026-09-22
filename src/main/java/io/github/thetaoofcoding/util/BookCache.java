@@ -38,16 +38,15 @@ public class BookCache {
     // 获取文件通道
     public static FileChannel getFileChannel(String bookName) {
         return FILE_CHANNEL_MAP.computeIfAbsent(bookName, bkName -> {
-            try {
-                // 文件夹路径
-                var folderPath = getFolderPath(bkName);
+            // 文件夹路径
+            var folderPath = getFolderPath(bkName);
+            try (var fileStream = Files.list(folderPath)) {
                 // 合并后的目标文件路径 e.g. D:/斗破苍穹/斗破苍穹.txt
-                var targetFilePath = Paths.get(FILE_PATH_FORMATTER.formatted(folderPath, bkName));
+                var targetFilePath = Paths.get(String.format(FILE_PATH_FORMATTER, folderPath, bkName));
                 // 使用 RandomAccessFile 预设文件大小，与 FileChannel 共享文件描述符，此处无需关闭
                 var raf = new RandomAccessFile(targetFilePath.toFile(), "rw");
                 // 计算合并后的文件总长度（字节）
-                var totalLength = Files.list(folderPath)
-                        .map(CheckedExceptionFucker::filesSize)
+                var totalLength = fileStream.map(CheckedExceptionFucker::filesSize)
                         .reduce(0L, Long::sum);
                 // 预设置总文件大小，避免重复扩容，提升写入时性能
                 raf.setLength(totalLength);

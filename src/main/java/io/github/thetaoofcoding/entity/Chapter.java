@@ -47,7 +47,7 @@ public class Chapter {
             this(bookName, orderId, filePath, fileChannel, -1L);
         }
 
-        private static Chapter4Merge ofWithSkip(Chapter4Merge chapter4Merge, AtomicLong skipsCounter) {
+        private static Chapter4Merge withSkip(Chapter4Merge chapter4Merge, AtomicLong skipsCounter) {
             try {
                 // 设置每章的跳过字节数 skip
                 var size = chapter4Merge.fileChannel().size();
@@ -60,7 +60,7 @@ public class Chapter {
         // 批量设置跳过字节数
         public static List<Chapter4Merge> assignSkipOffsets(List<Chapter4Merge> chapter4Merges) {
             final var skipsCounter = new AtomicLong(0L);
-            return chapter4Merges.stream().map(chapter4Merge -> ofWithSkip(chapter4Merge, skipsCounter)).toList();
+            return chapter4Merges.stream().map(chapter4Merge -> withSkip(chapter4Merge, skipsCounter)).toList();
         }
     }
 
