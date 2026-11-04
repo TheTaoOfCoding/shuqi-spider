@@ -6,7 +6,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * 用于IO密集型任务分治的工具类
@@ -46,9 +45,10 @@ public interface IOForkJoinTask<T extends IOForkJoinTask<T>> {
 
     // 拆分并提交异步子任务
     @SuppressWarnings("unchecked")
-    default CompletableFuture<CompletableFuture<Result>>[] fork() {
+    default CompletableFuture<Result>[] fork() {
         return Arrays.stream(doFork())
-                .map(task -> CompletableFuture.supplyAsync(task::compute, executor())) // 将子任务提交至线程池
+                .map(CompletableFuture::completedFuture)
+                .map(future -> future.thenComposeAsync(T::compute, executor())) // 解包扁平化操作：提交子任务
                 .toArray(CompletableFuture[]::new);
     }
 
@@ -57,13 +57,11 @@ public interface IOForkJoinTask<T extends IOForkJoinTask<T>> {
 
     // 非阻塞式等待子任务结果
     @SuppressWarnings("unchecked")
-    default CompletableFuture<Result> join(CompletableFuture<CompletableFuture<Result>>... futures) {
-        final var atomicReference = new AtomicReference<CompletableFuture<Result>[]>();
-        return CompletableFuture.allOf(futures) // 等待母任务完成（fork 任务线程）
+    default CompletableFuture<Result> join(CompletableFuture<Result>... futures) {
+        return CompletableFuture.allOf(futures) // 等待子任务完成
                 .whenCompleteAsync((_, _) -> log.info("{} - 等待子任务返回 ...", IOForkJoinTask.name()), executor())
-                .thenApplyAsync(_ -> atomicReference.updateAndGet(_ -> Arrays.stream(futures).map(CompletableFuture<CompletableFuture<Result>>::join).toArray(CompletableFuture[]::new)), executor()) // 汇总母任务结果
-                .thenApplyAsync(CompletableFuture::allOf, executor()) // 等待子任务完成（worker 任务线程）
-                .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<Result>::join).reduce(Result.ZERO, Result::reduce), executor()) // 汇总子任务结果
+                .thenApplyAsync(_ -> Arrays.stream(futures).map(CompletableFuture::join).toList(), executor()) // 收集子任务结果
+                .thenApplyAsync(results -> results.stream().reduce(Result.ZERO, Result::reduce), executor()) // 汇总子任务结果
                 .whenCompleteAsync((result, _) -> log.info("{} - 返回结果:{}", IOForkJoinTask.name(), result), executor());
     }
 

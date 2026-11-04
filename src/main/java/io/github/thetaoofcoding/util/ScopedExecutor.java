@@ -2,10 +2,8 @@ package io.github.thetaoofcoding.util;
 
 import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Proxy;
-import java.util.Arrays;
 import java.util.concurrent.*;
 import java.util.function.Supplier;
-import java.util.stream.Stream;
 
 /**
  * CompletableFuture 专用虚拟线程池工具类，为每一个新开启的虚拟线程设置 ScopedValue 值
@@ -59,8 +57,7 @@ public interface ScopedExecutor extends Executor {
                     // 在新创建的虚拟线程中重新绑定值
                     args[0] = (Runnable) () -> ScopedValue.where(key, value).run(r);
                 }
-                return MethodHandles.lookup().unreflect(method)
-                        .invokeWithArguments(Stream.concat(Stream.of(TARGET), Arrays.stream(args)).toArray());
+                return MethodHandles.lookup().unreflect(method).bindTo(TARGET).invokeWithArguments(args);
             });
         }
     }

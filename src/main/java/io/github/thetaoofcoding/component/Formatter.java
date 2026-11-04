@@ -44,7 +44,7 @@ public interface Formatter extends Task<Chapter.Chapter4Format, Chapter.Chapter4
             return chapter4Format -> CompletableFuture.completedFuture(chapter4Format)
                     .whenCompleteAsync((_, _) -> log.info("{} - 执行章节内容格式化操作", Formatter.name()), taskExecutor())
                     .thenApplyAsync(Chapter.Chapter4Format::unformattedChapterContent, taskExecutor())
-                    .thenApplyAsync(unformattedChapterContent -> unformattedChapterContent.replaceAll("<br/>", "\n"), taskExecutor())// 替换换行符
+                    .thenApplyAsync(unformattedChapterContent -> unformattedChapterContent.replace("<br/>", "\n"), taskExecutor())// 替换换行符
                     .thenApplyAsync(String::lines, taskExecutor())
                     .thenApplyAsync(stringStream -> stringStream.filter(Predicates::strNotBlank), taskExecutor())// 去除空白行
                     .thenApplyAsync(stringStream -> stringStream.map(String::strip), taskExecutor())// 去除行首行尾空格
