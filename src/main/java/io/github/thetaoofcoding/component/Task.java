@@ -82,7 +82,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 空任务
      */
     static <T, R> Task<T, R> empty() {
-        return _ -> CompletableFuture.completedFuture((R) null);
+        return _ -> CompletableFuture.<R>completedFuture(null);
     }
 
     /**
@@ -115,12 +115,20 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         final var atomicReference = new AtomicReference<CompletableFuture<R>[]>();
-        return items -> CompletableFuture.completedFuture(items)
+        return list -> CompletableFuture.completedFuture(list)
                 .thenApplyAsync(before, taskExecutor()) // 参数前置处理
-                .thenApplyAsync(list -> atomicReference.updateAndGet(_ -> list.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
+                .thenApplyAsync(tList -> atomicReference.updateAndGet(_ -> tList.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
                 .thenComposeAsync(CompletableFuture::allOf, taskExecutor()) // 等待所有任务完成
                 .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<R>::join).toList(), taskExecutor()) // 汇总任务结果
                 .thenApplyAsync(after, taskExecutor()); // 返回值后置处理
+    }
+
+    /*
+     * 顺序任务
+     */
+    static <T, R> Task<List<T>, List<R>> withSequential(Task<? super T, R> task) {
+        return list -> CompletableFuture.completedFuture(list)
+                .thenApplyAsync(tList -> tList.stream().map(task).map(CompletableFuture::join).toList(), taskExecutor());
     }
 
     /*

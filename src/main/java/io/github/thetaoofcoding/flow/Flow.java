@@ -82,6 +82,13 @@ public interface Flow<T, R> {
         return () -> Task.withParallel(before, flow.head(), after);
     }
 
+    /*
+     * 顺序流程
+     */
+    static <T, R> Flow<List<T>, List<R>> withSequential(Flow<? super T, R> flow) {
+        return () -> Task.withSequential(flow.head());
+    }
+
     /**
      * 关于流程的组装，这里想稍稍多谈一点，其实一开始想用「模板方法模式」组装多个任务成一条抽象流程，用「迭代器」组装多条流程
      * 但实际操作时，发现参数和返回值的不统一，不太可行，因为迭代需要提供统一的调用方式，强行统一的话，只能用更宽泛的类型来接受
