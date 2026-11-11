@@ -12,6 +12,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /*
  * 抽象通用节点
@@ -129,6 +130,15 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     static <T, R> Task<List<T>, List<R>> withSequential(Task<? super T, R> task) {
         return list -> CompletableFuture.completedFuture(list)
                 .thenApplyAsync(tList -> tList.stream().map(task).map(CompletableFuture::join).toList(), taskExecutor());
+    }
+
+    /*
+     * 自迭代任务
+     */
+    static <T> Task<T, T> withRepeatUntil(Task<? super T, T> task, Predicate<T> until) {
+        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
+        Assert.isTrue(until, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
+        return t -> until.test(t) ? CompletableFuture.completedFuture(t) : task.execute(t).thenComposeAsync(withRepeatUntil(task, until), taskExecutor());
     }
 
     /*

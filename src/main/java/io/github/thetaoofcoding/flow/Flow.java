@@ -8,6 +8,7 @@ import io.github.thetaoofcoding.entity.Chapter;
 
 import java.util.List;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * 抽象流程：组装多个 Task，形成一条任务链
@@ -87,6 +88,15 @@ public interface Flow<T, R> {
      */
     static <T, R> Flow<List<T>, List<R>> withSequential(Flow<? super T, R> flow) {
         return () -> Task.withSequential(flow.head());
+    }
+
+    /*
+     * 自迭代流程
+     */
+    static <T> Flow<T, T> withRepeatUntil(Flow<? super T, T> flow, Predicate<T> until) {
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
+        Assert.isTrue(until, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
+        return () -> Task.withRepeatUntil(flow.head(), until);
     }
 
     /**
