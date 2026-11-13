@@ -160,10 +160,10 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     private static <T, R, L extends List<? super R>> Task<Iterator<T>, Iterator<T>> withIteratorAsync(Task<? super T, R> task, L rs) {
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
         Assert.isTrue(rs, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
-        return iterator -> iterator.hasNext() ? task.execute(iterator.next())
-                .thenAcceptAsync(rs::add, taskExecutor())
-                .thenComposeAsync(_ -> Task.<T, R, L>withIteratorAsync(task, rs).apply(iterator), taskExecutor())
-                : CompletableFuture.completedFuture(iterator);
+        return iterator -> iterator.hasNext() ? task.execute(iterator.next()) // 执行当次
+                .thenAcceptAsync(rs::add, taskExecutor()) // 收集结果集
+                .thenComposeAsync(_ -> Task.<T, R, L>withIteratorAsync(task, rs).apply(iterator), taskExecutor()) // 递归下一次
+                : CompletableFuture.completedFuture(iterator); // 递归出口
     }
 
     /*
@@ -172,7 +172,9 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     static <T> Task<T, T> withRepeatUntil(Task<? super T, T> task, Predicate<T> until) {
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
         Assert.isTrue(until, Predicates::isNotNull, () -> new NullPointerException("Your time is limited, so don’t waste it living someone else’s life. — Steve Jobs"));
-        return t -> until.test(t) ? CompletableFuture.completedFuture(t) : task.execute(t).thenComposeAsync(withRepeatUntil(task, until), taskExecutor());
+        return t -> until.test(t) ? CompletableFuture.completedFuture(t) // 递归出口
+                : task.execute(t) // 执行当次
+                .thenComposeAsync(withRepeatUntil(task, until), taskExecutor()); // 递归下一次
     }
 
     /*
