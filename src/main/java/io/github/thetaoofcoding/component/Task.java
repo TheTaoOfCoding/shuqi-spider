@@ -5,14 +5,15 @@ import io.github.thetaoofcoding.util.Assert.Predicates;
 import io.github.thetaoofcoding.util.RateLimiter;
 import io.github.thetaoofcoding.util.ScopedExecutor;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.*;
 
 /*
  * 抽象通用节点
@@ -28,7 +29,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         try {
             return execute(param);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            return CompletableFuture.failedFuture(e);
         }
     }
 
@@ -118,18 +119,51 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         final var atomicReference = new AtomicReference<CompletableFuture<R>[]>();
         return list -> CompletableFuture.completedFuture(list)
                 .thenApplyAsync(before, taskExecutor()) // 参数前置处理
-                .thenApplyAsync(tList -> atomicReference.updateAndGet(_ -> tList.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
+                .thenApplyAsync(ts -> atomicReference.updateAndGet(_ -> ts.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
                 .thenComposeAsync(CompletableFuture::allOf, taskExecutor()) // 等待所有任务完成
                 .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<R>::join).toList(), taskExecutor()) // 汇总任务结果
                 .thenApplyAsync(after, taskExecutor()); // 返回值后置处理
     }
 
-    /*
+    /**
      * 顺序任务
+     *
+     * <pre>
+     * {@code // 内含阻塞原语，会退化至同步
+     *      return ts -> CompletableFuture.completedFuture(ts)
+     *              .thenApplyAsync(tList -> tList.stream()
+     *                  .map(task)
+     *                  .map(CompletableFuture::join) // 退化至同步
+     *                  .toList(), taskExecutor());
+     * }
+     *
+     * {@code // 写法略丑，不够优雅
+     * return ts -> ts.stream().reduce(CompletableFuture.completedFuture(new ArrayList<R>()),
+     *                 (future, t) -> future.thenComposeAsync(rs -> task.apply(t).thenAcceptAsync(rs::add, taskExecutor()).thenApplyAsync(_ -> rs, taskExecutor()), taskExecutor()),
+     *                 (left, right) -> {
+     *                     throw new UnsupportedOperationException("not here");
+     *                 });
+     * }
+     * </pre>
      */
     static <T, R> Task<List<T>, List<R>> withSequential(Task<? super T, R> task) {
-        return list -> CompletableFuture.completedFuture(list)
-                .thenApplyAsync(tList -> tList.stream().map(task).map(CompletableFuture::join).toList(), taskExecutor());
+        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
+        return ts -> {
+            final var rs = new ArrayList<R>();
+            return CompletableFuture.completedFuture(ts)
+                    .thenApplyAsync(List::iterator, taskExecutor())
+                    .thenComposeAsync(iterator -> Task.<T, R, List<R>>withIteratorAsync(task, rs).apply(iterator), taskExecutor())
+                    .thenApplyAsync(_ -> rs, taskExecutor());
+        };
+    }
+
+    private static <T, R, L extends List<? super R>> Task<Iterator<T>, Iterator<T>> withIteratorAsync(Task<? super T, R> task, L rs) {
+        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
+        Assert.isTrue(rs, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
+        return iterator -> iterator.hasNext() ? task.execute(iterator.next())
+                .thenAcceptAsync(rs::add, taskExecutor())
+                .thenComposeAsync(_ -> Task.<T, R, L>withIteratorAsync(task, rs).apply(iterator), taskExecutor())
+                : CompletableFuture.completedFuture(iterator);
     }
 
     /*

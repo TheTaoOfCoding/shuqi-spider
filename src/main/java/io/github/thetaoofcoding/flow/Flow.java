@@ -87,6 +87,7 @@ public interface Flow<T, R> {
      * 顺序流程
      */
     static <T, R> Flow<List<T>, List<R>> withSequential(Flow<? super T, R> flow) {
+        Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
         return () -> Task.withSequential(flow.head());
     }
 

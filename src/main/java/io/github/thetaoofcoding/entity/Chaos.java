@@ -6,4 +6,4 @@ package io.github.thetaoofcoding.entity;
  * 混沌谓之「道」。
  */
 // nothing，甚至连换行都没有
-public sealed class Chaos permits Tao {}
+public sealed abstract class Chaos permits Tao {}
