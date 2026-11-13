@@ -157,7 +157,11 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         };
     }
 
-    private static <T, R, L extends List<? super R>> Task<Iterator<T>, Iterator<T>> withIteratorAsync(Task<? super T, R> task, L rs) {
+    /*
+     * 异步顺序自迭代
+     * 会收集结果集，要求 rs（结果集）始终使用同一个
+     */
+    private static <T, R, L extends List<? super R>> Task<Iterator<T>, Iterator<T>> withIteratorAsync(Task<? super T, R> task, final L rs) {
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
         Assert.isTrue(rs, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
         return iterator -> iterator.hasNext() ? task.execute(iterator.next()) // 执行当次
