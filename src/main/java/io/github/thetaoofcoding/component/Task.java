@@ -50,18 +50,20 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
     }
 
     /*
-     * 重试任务
+     * 重试任务（延时后重复一次）
      */
-    default Task<T, R> retry() {
-        return retry(1L, 2L);
+    default Task<T, R> tryAgain(long delay) {
+        Assert.isTrue(delay, 0L, Predicates::isOrderGe, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        return t -> execute(t).exceptionallyComposeAsync(_ -> apply(t), delayedTaskExecutor(delay));
     }
 
     /*
-     * 重试任务（延时后重复一次）
+     * 降级任务（失败兜底: 执行原始任务）
      */
-    default Task<T, R> retry(long delay) {
-        Assert.isTrue(delay, 0L, Predicates::isOrderGt, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
-        return t -> execute(t).exceptionallyComposeAsync(_ -> apply(t), delayedTaskExecutor(delay));
+    default Task<T, R> orElse(Task<T, R> fallback, long delay) {
+        Assert.isTrue(fallback, Predicates::isNotNull, () -> new NullPointerException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        Assert.isTrue(delay, 0L, Predicates::isOrderGe, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        return t -> execute(t).exceptionallyComposeAsync(_ -> fallback.apply(t), delayedTaskExecutor(delay));
     }
 
     /*
@@ -69,8 +71,17 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      */
     default Task<T, R> retry(long delay, long times) {
         Assert.isTrue(times, 1L, Predicates::isOrderGe, () -> new IllegalArgumentException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
-        if (times == 1) return retry(delay);
-        return retry(delay, times - 1).retry(delay + 1);
+        if (times == 1) return tryAgain(delay);
+        final var origin = this;
+        return retry(delay, times - 1).orElse(origin, delay);
+    }
+
+    /*
+     * 重试任务（重试指定任务）
+     */
+    static <T, R> Task<T, R> withRetry(Task<T, R> task, long delay, long times) {
+        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("Whether you think you can or you think you can't, you're right. – Henry Ford"));
+        return task.retry(delay, times);
     }
 
     /*

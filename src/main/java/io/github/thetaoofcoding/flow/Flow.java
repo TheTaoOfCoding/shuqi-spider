@@ -46,9 +46,9 @@ public interface Flow<T, R> {
     /*
      * 重试流程
      */
-    default Flow<T, R> retry() {
+    default Flow<T, R> retry(long delay, long times) {
         Assert.isTrue(head(), Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
-        return head()::retry;
+        return () -> head().retry(delay, times);
     }
 
     /*
@@ -68,9 +68,16 @@ public interface Flow<T, R> {
     /*
      * 重试指定流程
      */
-    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
+    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow, long delay, long times) {
         Assert.isTrue(flow, Predicates::isNotNull, () -> new NullPointerException("If I looked compared to others far, is because I stand on giant’s shoulder. — Newton"));
-        return flow.retry();
+        return flow.retry(delay, times);
+    }
+
+    /*
+     * 重试指定流程（默认参数）
+     */
+    static <T, R> Flow<T, R> withRetry(Flow<T, R> flow) {
+        return withRetry(flow, 1, 2);
     }
 
     /*
