@@ -7,12 +7,10 @@ import io.github.thetaoofcoding.util.ScopedExecutor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.*;
 
 /*
@@ -127,12 +125,11 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
         Assert.isTrue(before, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
         Assert.isTrue(after, Predicates::isNotNull, () -> new NullPointerException("The future depends on what you do today. — Mahatma Gandhi"));
-        final var atomicReference = new AtomicReference<CompletableFuture<R>[]>();
-        return list -> CompletableFuture.completedFuture(list)
+        return ts -> CompletableFuture.completedFuture(ts)
                 .thenApplyAsync(before, taskExecutor()) // 参数前置处理
-                .thenApplyAsync(ts -> atomicReference.updateAndGet(_ -> ts.stream().map(task).toArray(CompletableFuture[]::new)), taskExecutor()) // 并行执行任务
-                .thenComposeAsync(CompletableFuture::allOf, taskExecutor()) // 等待所有任务完成
-                .thenApplyAsync(_ -> Arrays.stream(atomicReference.get()).map(CompletableFuture<R>::join).toList(), taskExecutor()) // 汇总任务结果
+                .thenApplyAsync(list -> list.stream().map(task).toArray(CompletableFuture[]::new), taskExecutor()) // 并行执行任务
+                .thenComposeAsync(cfs -> CompletableFuture.allOf(cfs) // 等待所有任务完成
+                        .thenApplyAsync(_ -> Arrays.stream(cfs).map(CompletableFuture<R>::join).toList(), taskExecutor()), taskExecutor())// 汇总任务结果
                 .thenApplyAsync(after, taskExecutor()); // 返回值后置处理
     }
 
@@ -140,7 +137,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      * 顺序任务
      *
      * <pre>
-     * {@code // 内含阻塞原语，会退化至同步
+     * {@code
      *      return ts -> CompletableFuture.completedFuture(ts)
      *              .thenApplyAsync(tList -> tList.stream()
      *                  .map(task)
@@ -148,7 +145,7 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      *                  .toList(), taskExecutor());
      * }
      *
-     * {@code // 写法略丑，不够优雅
+     * {@code
      * return ts -> ts.stream().reduce(CompletableFuture.completedFuture(new ArrayList<R>()),
      *                 (future, t) -> future.thenComposeAsync(rs -> task.apply(t).thenAcceptAsync(rs::add, taskExecutor()).thenApplyAsync(_ -> rs, taskExecutor()), taskExecutor()),
      *                 (left, right) -> {
@@ -159,26 +156,21 @@ public interface Task<T, R> extends Function<T, CompletableFuture<R>> {
      */
     static <T, R> Task<List<T>, List<R>> withSequential(Task<? super T, R> task) {
         Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
-        return ts -> {
-            final var rs = new ArrayList<R>();
-            return CompletableFuture.completedFuture(ts)
-                    .thenApplyAsync(List::iterator, taskExecutor())
-                    .thenComposeAsync(iterator -> Task.<T, R, List<R>>withIteratorAsync(task, rs).apply(iterator), taskExecutor())
-                    .thenApplyAsync(_ -> rs, taskExecutor());
-        };
-    }
-
-    /*
-     * 异步顺序自迭代
-     * 会收集结果集，要求 rs（结果集）始终使用同一个
-     */
-    private static <T, R, L extends List<? super R>> Task<Iterator<T>, Iterator<T>> withIteratorAsync(Task<? super T, R> task, final L rs) {
-        Assert.isTrue(task, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
-        Assert.isTrue(rs, Predicates::isNotNull, () -> new NullPointerException("To strive, to seek, to find, and not to yield. — Alfred Lord Tennyson"));
-        return iterator -> iterator.hasNext() ? task.execute(iterator.next()) // 执行当次
-                .thenAcceptAsync(rs::add, taskExecutor()) // 收集结果集
-                .thenComposeAsync(_ -> Task.<T, R, L>withIteratorAsync(task, rs).apply(iterator), taskExecutor()) // 递归下一次
-                : CompletableFuture.completedFuture(iterator); // 递归出口
+        return ts -> CompletableFuture.completedFuture(ts)
+                .thenApplyAsync(List::iterator, taskExecutor())
+                .thenComposeAsync(iterator -> {
+                    class SequentialStep {
+                        private final List<R> rs = new ArrayList<R>();
+                        CompletableFuture<Void> drain() {
+                            return iterator.hasNext() ? task.apply(iterator.next()) // 执行当次
+                                    .thenAcceptAsync(rs::add, taskExecutor()) // 收集结果集
+                                    .thenComposeAsync(_ -> drain(), taskExecutor()) // 递归下一次
+                                    : CompletableFuture.completedFuture(null); // 递归出口
+                        }
+                    }
+                    final var sequentialStep = new SequentialStep();
+                    return sequentialStep.drain().thenApplyAsync(_ -> sequentialStep.rs, taskExecutor());
+                }, taskExecutor());
     }
 
     /*
