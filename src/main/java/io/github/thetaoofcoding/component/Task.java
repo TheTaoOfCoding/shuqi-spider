@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /*
  * 抽象通用节点
